@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 
 
 Pi = np.pi
-QUBITS = 1
+QUBITS = 3
 
 
 
 @qml.template
-def encoding_unitary(x, seed=0, layers=3, wires=[0, 1, 2]):
+def general_encoding_unitary(x, layers, parameters, wires):
     """
     Defines the data encoding unitary
     :param x:
@@ -19,13 +19,16 @@ def encoding_unitary(x, seed=0, layers=3, wires=[0, 1, 2]):
     :return:
     """
     assert isinstance(wires, list), 'List of qubits expected'
-    np.random.seed(seed)
+    assert len(parameters) == 3* layers*qubits, 'number of parameters does not match'
+    par_index = 0 # tracks the free parameters of the encoding unitary
     for i in range(layers):
         # apply random unitary to each qubit and encode data in z rotation
         for j in range(len(wires)):
-            angles = np.random.uniform(0, 2*Pi, 3)
+            angles = parameters[par_index:par_index+3]
+            par_index += 3
             # random rotation
             qml.Rot(*angles, wires=wires[j])
+            # data encoding
             qml.RZ(x, wires=wires[j])
         # entangle qubits
         if len(wires) > 1:
@@ -44,14 +47,14 @@ dev = qml.device('default.qubit', wires=qubits)
 @qml.qnode(dev)
 def circuit(x, seed=0, layers=5, qubits=QUBITS):
     wires=[i for i in range(qubits)]
-    encoding_unitary(x, seed=seed, layers=layers, wires=wires)
+    data_encoding(x, wires=wires)
     return qml.expval(qml.PauliZ(0))
 
 
 @qml.qnode(dev)
 def full_kernel(x, y, qubits=QUBITS):
-    encoding_unitary(x, wires=[i for i in range(qubits)])
-    qml.inv(encoding_unitary(y, wires=[i for i in range(qubits)]))
+    data_encoding(x, wires=[i for i in range(qubits)])
+    qml.inv(data_encoding(y, wires=[i for i in range(qubits)]))
 
     projector = np.zeros((2 ** qubits, 2 ** qubits))
     projector[0, 0] = 1
@@ -62,8 +65,8 @@ def full_kernel(x, y, qubits=QUBITS):
 dev_double = qml.device('default.qubit', wires=2 * qubits + 1)
 @qml.qnode(dev_double)
 def biased_kernel_raw(x, y, qubits=QUBITS):
-    encoding_unitary(x, wires=[i for i in range(qubits)])
-    encoding_unitary(y, wires=[qubits + i for i in range(qubits)])
+    data_encoding(x, wires=[i for i in range(qubits)])
+    data_encoding(y, wires=[qubits + i for i in range(qubits)])
 
     # Swap test of first qubit each
     qml.Hadamard(wires=2*qubits)
@@ -81,6 +84,14 @@ def biased_kernel(x,y, qubits=QUBITS):
     return 2 * (p_0 - 1/2)
 
 
+# define the data encoding strategy
+layers = 5
+np.random.seed(0)
+parameters = np.random.uniform(0, 2*Pi, 3 * layers * QUBITS)
+
+@qml.template
+def data_encoding(x, wires):
+    general_encoding_unitary(x, layers, parameters, wires)
 
 
 
@@ -103,7 +114,7 @@ from sklearn.kernel_ridge import KernelRidge
 np.random.seed(0)
 samples = 10
 X = np.random.uniform(0, 2*Pi, samples)
-noise = np.random.normal(0,0.01, samples)
+noise = np.random.normal(0,0.001, samples)
 Y = [circuit(X[i]) + noise[i] for i in range(samples)]
 plt.scatter(X,Y)
 biased_qreg = KernelRidge(alpha=0.00000001, kernel=biased_kernel)
@@ -118,10 +129,9 @@ print("Done Learning")
 Y_q_full = full_qreg.predict(X_plot.reshape((-1,1)))
 
 Y_ground_truth = [circuit(x) for x in X_plot]
-plt.plot(X_plot, Y_q_pred, label= "biased")
-plt.plot(X_plot, Y_q_full, label="full")
-plt.plot(X_plot, Y_ground_truth, label=r"$f^*$")
+plt.plot(X_plot, Y_q_pred, label= "biased", ls='dashdot')
+plt.plot(X_plot, Y_q_full, label="full", ls='dashed')
+plt.plot(X_plot, Y_ground_truth, label=r"$f^*$", ls='dotted')
 plt.legend()
 plt.show()
-# KernelRidge(alpha=1.0)
 
