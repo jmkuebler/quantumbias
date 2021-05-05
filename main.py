@@ -3,10 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.kernel_ridge import KernelRidge
 
+import time
 
 
 Pi = np.pi
-QUBITS = 3 # global definition of the number of qubits. Needed here already as qml.devices are specified with number
+QUBITS = 5 # global definition of the number of qubits. Needed here already as qml.devices are specified with number
 
 
 
@@ -48,17 +49,21 @@ qubits = QUBITS # number of qubits we define our circuit on
 # node for all operations on a single qubit
 dev = qml.device('default.qubit', wires=qubits)
 @qml.qnode(dev)
-def circuit(x, qubits=QUBITS):
+def circuit(x, qubits=QUBITS, return_reduced_state=False):
     """
     Circuit to generate the Y data
     :param x: input
     :param qubits: number of qubits in the circuit
+    :param return_reduced_state: if True: not the expectation of the observable is computet but the reduced first qubit
     :return:
     """
     wires = [i for i in range(qubits)]
     data_encoding(x, wires=wires)
-    # the observable that defines the target function (f^*) is arbitrarily chosen as the pauli-Z on the first qubit.
-    return qml.expval(qml.PauliZ(0))
+    if return_reduced_state:
+        return qml.density_matrix(0)
+    else:
+        # the observable that defines the target function (f^*) is arbitrarily chosen as the pauli-Z on the first qubit.
+        return qml.expval(qml.PauliZ(0))
 
 
 @qml.qnode(dev)
@@ -79,6 +84,11 @@ def full_kernel(x, y, qubits=QUBITS):
     projector[0, 0] = 1
     return qml.expval(qml.Hermitian(projector, wires=range(qubits)))
 
+def biased_kernel(x,y):
+    # works with the reduced first qubit density operators
+    rho_x = circuit(x, return_reduced_state=True)
+    rho_y = circuit(y, return_reduced_state=True)
+    return np.real(np.trace(rho_x @ rho_y))
 
 # node for computing the biased quantum kernel (we need a device with 2*QUBITS + 1, with the ancilla qubit for the
 # SWAP test
@@ -100,10 +110,12 @@ def biased_kernel_raw(x, y, qubits=QUBITS):
     return qml.expval(qml.Hermitian(projector, wires=[2*qubits]))
 
 
-def biased_kernel(x, y):
+def biased_kernel_physical(x, y):
     p_0 = biased_kernel_raw(x, y)
     # k(x,x') = 2 * (p(0) - 1/2)
     return 2 * (p_0 - 1/2)
+
+
 
 
 # define the data encoding strategy
@@ -118,7 +130,16 @@ def data_encoding(x, wires):
 
 # ## ------   Some sanity checks ------
 # print(full_kernel(1,1))
-# print("biased: ", biased_kernel(1,1))
+# start = time.time()
+# res = biased_kernel(1,1)
+# end = time.time()
+# print("time with partial density: ", end-start)
+#
+# start = time.time()
+# res = biased_kernel_physical(1,1)
+# end = time.time()
+# print("time with Swap test: ", end-start)
+# print("biased: ", biased_kernel(1,1), biased_kernel_physical(1,1))
 # result = circuit(0.9)
 # print(result)
 # print(result)
@@ -132,8 +153,12 @@ def data_encoding(x, wires):
 np.random.seed(0)
 samples = 10
 X = np.random.uniform(0, 2*Pi, samples)
-noise = np.random.normal(0,0.001, samples)
+noise = np.random.normal(0,0.01, samples)
+# with noies
 Y = [circuit(X[i]) + noise[i] for i in range(samples)]
+# without noise
+# Y = [circuit(X[i]) for i in range(samples)]
+
 plt.scatter(X,Y)
 biased_qreg = KernelRidge(alpha=0.00000001, kernel=biased_kernel)
 biased_qreg.fit(X.reshape(-1, 1), Y)
@@ -147,7 +172,7 @@ print("Done Learning")
 Y_q_full = full_qreg.predict(X_plot.reshape((-1,1)))
 
 Y_ground_truth = [circuit(x) for x in X_plot]
-# plt.plot(X_plot, Y_q_pred, label= "biased", ls='dashdot')
+plt.plot(X_plot, Y_q_pred, label= "biased", ls='dashdot')
 plt.plot(X_plot, Y_q_full, label="full", ls='dashed')
 plt.plot(X_plot, Y_ground_truth, label=r"$f^*$", ls='dotted')
 plt.legend()
