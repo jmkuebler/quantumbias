@@ -57,4 +57,4 @@ for i in range(4):
 plt.xlabel("Qubits")
 plt.ylabel("MSE")
 plt.legend()
-plt.show()
+plt.savefig("exp.pdf")
