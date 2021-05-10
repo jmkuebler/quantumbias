@@ -52,20 +52,30 @@ def full_kernel_classic(x,y):
         k = k* np.cos(1/2*(x[i]-y[i]))**2
     return k
 
+def kernel_matrix_classic(X,Y):
+    # TODO: parallelize using torch properly
+    K = torch.zeros((len(X), len(Y)))
+    for i in range(len(X)):
+        for j in range(len(Y)):
+            K[i, j] = full_kernel_classic(X[i], Y[j])
+    return K
+
+
+
 
 def biased_kernel_fct(x, y, reduced_state):
     # works with the reduced first qubit density operators
     rho_x = reduced_state(x)
     rho_y = reduced_state(y)
-    p0 = np.real(np.trace(rho_x @ rho_y))
-    return 2 * (p0 - 1 / 2)
+    k = np.real(np.trace(rho_x @ rho_y))
+    return k
 
-def biased_kernel_matrix(X, reduced_state):
+def biased_kernel_matrix(X, Y, reduced_state):
     # works with the reduced first qubit density operators
-    print(len(X))
-    rho_X = torch.tensor([np.array(reduced_state(x)) for x in X])
-    p0 = torch.einsum('aik,bki -> ab', rho_X, rho_X) # trace[rho(x)rho(y)
-    return 2 * (p0 - 1 / 2)
+    rho_X = torch.tensor([np.array(reduced_state(x)) for x in X]) # compute reduced density operator for all inputs
+    rho_Y = torch.tensor([np.array(reduced_state(y)) for y in Y])
+    K = np.real(torch.einsum('aik,bki -> ab', rho_X, rho_Y)) # trace[rho(x)rho(y)
+    return K # formula for the swap test
 
 
 def get_functions(qubits, seed=0):
@@ -77,12 +87,12 @@ def get_functions(qubits, seed=0):
     reduced_state_fct = lambda x: circuit_function(x, product_encoding, qubits, return_reduced_state=True, seed=seed)
     reduced_state = qml.QNode(reduced_state_fct, dev)
     k_prod_bias = lambda x, y: biased_kernel_fct(x, y, reduced_state)
-    compute_K_biased = lambda x: biased_kernel_matrix(x, reduced_state)
+    kernel_matrix_bias = lambda X, Y: biased_kernel_matrix(X, Y, reduced_state)
 
     f_fct = lambda x: circuit_function(x, product_encoding, qubits, return_reduced_state=False, seed=seed)
     f = qml.QNode(f_fct, dev)
 
-    return k_prod, k_prod_bias, f, compute_K_biased
+    return k_prod, k_prod_bias, f, kernel_matrix_bias
 
 
 def tests():
@@ -124,18 +134,24 @@ def classic_vs_quantum():
 
 
 def test_kernel_matrix():
-    qubits = 3
-    k_full, k_bias, f, compute_K_bias = get_functions(qubits, seed=0)
+    # check if the kernel matrix computation does what it does
+    qubits = 5
+    k_full, k_bias, f, kernel_matrix_bias = get_functions(qubits, seed=0)
     samples = 5
     X = np.random.uniform([0] * qubits, [2 * np.pi] * qubits, size=(samples, qubits))
     K_bias = np.array([[k_bias(x, y) for x in X] for y in X])
     print(K_bias)
 
-    K_direct = compute_K_bias(X)
+    K_direct = kernel_matrix_bias(X, X)
     print(K_direct)
+
+    K_full = np.array([[k_full(x, y) for x in X] for y in X])
+    print(K_full)
+    print(kernel_matrix_classic(X,X))
 
 if __name__ == "__main__":
     # tests()
     # rkhs_dimension()
     # classic_vs_quantum()
     test_kernel_matrix()
+    pass
