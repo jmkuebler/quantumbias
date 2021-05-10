@@ -23,7 +23,7 @@ def general_encoding_unitary(x, layers, parameters, wires):
     :return:
     """
     assert isinstance(wires, list), 'List of qubits expected'
-    assert len(parameters) == 3* layers*qubits, 'number of parameters does not match'
+    assert len(parameters) == 3* layers*len(wires), 'number of parameters does not match '
     par_index = 0 # tracks the free parameters of the encoding unitary
     for i in range(layers):
         # apply random unitary to each qubit and encode data in z rotation
@@ -69,7 +69,7 @@ def circuit_function(x, qubits=QUBITS, return_reduced_state=False):
 
 
 
-def full_kernel_fct(x, y, qubits=QUBITS):
+def full_kernel_fct(x, y, data_encoding, qubits=QUBITS):
     """
     defines the full kernel
     :param x: input 1
@@ -123,70 +123,91 @@ def biased_kernel_physical(x, y):
 
 # ---------------------   now some experiments -------------------
 
+def rkhs_dimension():
+    for i in range(1,10):
+        layers = i
+        qubits = i
+        np.random.seed(1)
+        parameters = np.random.uniform(0, 2 * Pi, 3 * layers * qubits)
 
-# define the data encoding strategy
-layers = 5
-np.random.seed(0)
-parameters = np.random.uniform(0, 2*Pi, 3 * layers * QUBITS)
+        @qml.template
+        def data_encoding(x, wires):
+            general_encoding_unitary(x, layers, parameters, wires)
+        dev = qml.device('default.qubit', wires=qubits)
+        helper = lambda x, y: full_kernel_fct(x, y, data_encoding, qubits) # it seems it is not allowed to have parameters other than the gate variables....
+        full_kernel = qml.QNode(helper, dev)
+        samples = 30
+        X = np.random.uniform(0, 2*Pi, samples)
+        K = np.array([[full_kernel(x,y) for x in X] for y in X]) # optimize by only computing upper triang
+        print("i= ",i, "rank= ", np.linalg.matrix_rank(K), ", encodings= ", layers * qubits)
 
-@qml.template
-def data_encoding(x, wires):
-    general_encoding_unitary(x, layers, parameters, wires)
-
-dev = qml.device('default.qubit', wires=qubits)
-circuit = qml.QNode(circuit_function, dev)
-full_kernel = qml.QNode(full_kernel_fct, dev)
-
-
-# ## ------   Some sanity checks ------
-def compare_runtime():
-    # adjust the global number of QUBITS.
-    start = time.time()
-    res = biased_kernel(1,1)
-    end = time.time()
-    print("time with partial density: ", end-start)
-
-    start = time.time()
-    res = biased_kernel_physical(1,1)
-    end = time.time()
-    print("time with Swap test: ", end-start)
-compare_runtime()
-# print("biased: ", biased_kernel(1,1), biased_kernel_physical(1,1))
-# result = circuit(0.9)
-# print(result)
-# print(result)
-# X = np.arange(0,2*Pi, 0.01)
-# Y = [circuit(x) for x in X]
+rkhs_dimension()
 #
-# plt.plot(X,Y)
-# plt.show()
-
-# ### ---------------  a simple learning problem --------------
-np.random.seed(0)
-samples = 10
-X = np.random.uniform(0, 2*Pi, samples)
-noise = np.random.normal(0,0.01, samples)
-# with noies
-Y = [circuit(X[i]) + noise[i] for i in range(samples)]
-# without noise
-# Y = [circuit(X[i]) for i in range(samples)]
-
-# plt.scatter(X,Y)
-# biased_qreg = KernelRidge(alpha=0.00000001, kernel=biased_kernel)
-# biased_qreg.fit(X.reshape(-1, 1), Y)
-# print("Done Learning")
-# X_plot = np.arange(0,2*Pi, 0.1)
-# Y_q_pred = biased_qreg.predict(X_plot.reshape((-1,1)))
+# # define the data encoding strategy
+# layers = 5
+# np.random.seed(0)
+# parameters = np.random.uniform(0, 2*Pi, 3 * layers * QUBITS)
 #
-# full_qreg = KernelRidge(alpha=0.00000001, kernel=full_kernel)
-# full_qreg.fit(X.reshape(-1, 1), Y)
-# print("Done Learning")
-# Y_q_full = full_qreg.predict(X_plot.reshape((-1,1)))
+# @qml.template
+# def data_encoding(x, wires):
+#     general_encoding_unitary(x, layers, parameters, wires)
 #
-# Y_ground_truth = [circuit(x) for x in X_plot]
-# plt.plot(X_plot, Y_q_pred, label= "biased", ls='dashdot')
-# plt.plot(X_plot, Y_q_full, label="full", ls='dashed')
-# plt.plot(X_plot, Y_ground_truth, label=r"$f^*$", ls='dotted')
-# plt.legend()
-# plt.show()
-
+# dev = qml.device('default.qubit', wires=qubits)
+# # circuit = qml.QNode(circuit_function, dev)
+# helper = lambda x,y: full_kernel_fct(x,y, data_encoding, qubits)
+# full_kernel = qml.QNode(helper, dev)
+# print(full_kernel(1,1))
+#
+# #
+# # # ## ------   Some sanity checks ------
+# # def compare_runtime():
+# #     # adjust the global number of QUBITS.
+# #     start = time.time()
+# #     res = biased_kernel(1,1)
+# #     end = time.time()
+# #     print("time with partial density: ", end-start)
+# #
+# #     start = time.time()
+# #     res = biased_kernel_physical(1,1)
+# #     end = time.time()
+# #     print("time with Swap test: ", end-start)
+# # compare_runtime()
+# # # print("biased: ", biased_kernel(1,1), biased_kernel_physical(1,1))
+# # # result = circuit(0.9)
+# # # print(result)
+# # # print(result)
+# # # X = np.arange(0,2*Pi, 0.01)
+# # # Y = [circuit(x) for x in X]
+# # #
+# # # plt.plot(X,Y)
+# # # plt.show()
+# #
+# # # ### ---------------  a simple learning problem --------------
+# # np.random.seed(0)
+# # samples = 10
+# # X = np.random.uniform(0, 2*Pi, samples)
+# # noise = np.random.normal(0,0.01, samples)
+# # # with noies
+# # Y = [circuit(X[i]) + noise[i] for i in range(samples)]
+# # # without noise
+# # # Y = [circuit(X[i]) for i in range(samples)]
+# #
+# # # plt.scatter(X,Y)
+# # # biased_qreg = KernelRidge(alpha=0.00000001, kernel=biased_kernel)
+# # # biased_qreg.fit(X.reshape(-1, 1), Y)
+# # # print("Done Learning")
+# # # X_plot = np.arange(0,2*Pi, 0.1)
+# # # Y_q_pred = biased_qreg.predict(X_plot.reshape((-1,1)))
+# # #
+# # # full_qreg = KernelRidge(alpha=0.00000001, kernel=full_kernel)
+# # # full_qreg.fit(X.reshape(-1, 1), Y)
+# # # print("Done Learning")
+# # # Y_q_full = full_qreg.predict(X_plot.reshape((-1,1)))
+# # #
+# # # Y_ground_truth = [circuit(x) for x in X_plot]
+# # # plt.plot(X_plot, Y_q_pred, label= "biased", ls='dashdot')
+# # # plt.plot(X_plot, Y_q_full, label="full", ls='dashed')
+# # # plt.plot(X_plot, Y_ground_truth, label=r"$f^*$", ls='dotted')
+# # # plt.legend()
+# # # plt.show()
+# #
