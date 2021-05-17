@@ -46,11 +46,13 @@ def full_kernel_fct(x, y, data_encoding):
     projector[0, 0] = 1
     return qml.expval(qml.Hermitian(projector, wires=range(qubits)))
 
+
 def full_kernel_classic(x,y):
     k = 1
     for i in range(len(x)):
         k = k* np.cos(1/2*(x[i]-y[i]))**2
     return k
+
 
 def kernel_matrix_classic(X,Y):
     # TODO: parallelize using torch properly
@@ -61,6 +63,18 @@ def kernel_matrix_classic(X,Y):
     return K
 
 
+def kernel_matrix_classic_torch(X, Y):
+    if type(X) is np.ndarray:
+        X = torch.from_numpy(X)
+    if type(Y) is np.ndarray:
+        Y = torch.from_numpy(Y)
+    # create tensor with entry i x j x k equal to x_ik - y_jk
+    X = X.unsqueeze(1).expand(-1, Y.size(0), -1)
+    Y = Y.unsqueeze(0).expand(X.size(0), -1, -1)
+    K = X - Y
+    K = torch.cos(K / 2) ** 2
+    K = torch.prod(K, 2)
+    return K
 
 
 def biased_kernel_fct(x, y, reduced_state):
@@ -69,6 +83,7 @@ def biased_kernel_fct(x, y, reduced_state):
     rho_y = reduced_state(y)
     k = np.real(np.trace(rho_x @ rho_y))
     return k
+
 
 def biased_kernel_matrix(X, Y, reduced_state):
     # works with the reduced first qubit density operators
@@ -109,6 +124,7 @@ def tests():
     print(k_prod([1]*qubits, [1]*qubits))
     print(k_prod_bias([1]*qubits, [1]*qubits))
 
+
 def rkhs_dimension():
     qubit_count = [i for i in range(1,6)]
     ranks = [0 for qubit in qubit_count]
@@ -126,6 +142,7 @@ def rkhs_dimension():
 
     plt.scatter(qubit_count, ranks)
     plt.show()
+
 
 def classic_vs_quantum():
     qubits = 3
@@ -148,6 +165,8 @@ def test_kernel_matrix():
     K_full = np.array([[k_full(x, y) for x in X] for y in X])
     print(K_full)
     print(kernel_matrix_classic(X,X))
+    print(kernel_matrix_classic(X,X) - kernel_matrix_classic_torch(X,X))
+
 
 if __name__ == "__main__":
     # tests()
