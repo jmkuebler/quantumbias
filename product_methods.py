@@ -14,7 +14,7 @@ def product_encoding(x, wires=[0]):
         qml.RX(x[i], wires=i)
 
 
-def circuit_function(x, data_encoding, qubits, return_reduced_state=False, seed=0):
+def circuit_function(x, data_encoding, qubits, seed, return_reduced_state=False):
     np.random.seed(seed)
     wires = [i for i in range(qubits)]
     # First encode the data
@@ -78,7 +78,7 @@ def biased_kernel_matrix(X, Y, reduced_state):
     return K # formula for the swap test
 
 
-def get_functions(qubits, seed=0):
+def get_functions(qubits, seed):
     dev = qml.device('default.qubit', wires=qubits)
     # define the full kernel
     k_prod_fct = lambda x, y: full_kernel_fct(x, y, data_encoding=product_encoding)
@@ -91,6 +91,7 @@ def get_functions(qubits, seed=0):
 
     f_fct = lambda x: circuit_function(x, product_encoding, qubits, return_reduced_state=False, seed=seed)
     f = qml.QNode(f_fct, dev)
+
 
     return k_prod, k_prod_bias, f, kernel_matrix_bias
 
