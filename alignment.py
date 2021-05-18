@@ -45,8 +45,8 @@ X = np.random.uniform([0]*qubits, [2*np.pi]*qubits, size=(2*samplesize, qubits))
 noise = np.random.normal(0, noise_level, 2*samplesize)
 f_X = np.array([f(X[i]) for i in range(2*samplesize)])
 f_X = f_X
-y = np.array(f_X + noise) #- np.mean(f_X)
-
+y = np.array(f_X + noise) - np.mean(f_X)
+#
 # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=seed)
 #
 # krr_full = KernelRidge(alpha=0., kernel="precomputed")
@@ -68,9 +68,15 @@ y = np.array(f_X + noise) #- np.mean(f_X)
 K_full_c = center(kernel_matrix_classic(X, X))
 
 K_bias_c = center(kernel_matrix_bias(X, X))
-print(np.linalg.eigvalsh(K_full_c))
-# print(np.linalg.eigvalsh(K_bias_c))
+# print(np.linalg.eigvalsh(K_full_c))
+w,v = np.linalg.eigh(K_bias_c)
+# print(np.linalg.eigvalsh())
 
+y_norm = y / np.sqrt(y@y)
+print("three leading evalues", w[-3:])
+print("inner product with 3 leading ev", [(y_norm@v) for v in np.transpose(v)[-3:]])
+
+print("linear combination", np.linalg.solve(v, y_norm)[-3:])
 #
 # print("nominator larger ", y@K_bias_c@y > y@K_full_c@y)
 #
@@ -78,6 +84,8 @@ print(np.linalg.eigvalsh(K_full_c))
 
 # print(K_bias, y)
 #
+print("expectation of y at full kernel - normalized with root of sum of squared ev (equals alignment)", y_norm @ K_full_c @ y_norm / np.sqrt(np.sum(np.linalg.eigvalsh(K_full_c)**2)))
+
 print("centered:   full: ", alignment(K_full_c, y), "   biased: ", alignment(K_bias_c, y))
 #
 #
