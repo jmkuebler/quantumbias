@@ -14,7 +14,7 @@ def product_encoding(x, wires=[0]):
         qml.RX(x[i], wires=i)
 
 
-def circuit_function(x, data_encoding, qubits, seed, return_reduced_state=False):
+def circuit_function(x, data_encoding, qubits, seed, return_reduced_state=False, M="Z", reduced_state=0):
     np.random.seed(seed)
     wires = [i for i in range(qubits)]
     # First encode the data
@@ -28,10 +28,13 @@ def circuit_function(x, data_encoding, qubits, seed, return_reduced_state=False)
     RandomLayers(weights=weights, ratio_imprim=ratio_imprim, wires=wires, seed=seed)
 
     if return_reduced_state:
-        return qml.density_matrix(0)
+        return qml.density_matrix(reduced_state)
     else:
-        # the observable that defines the target function (f^*) is arbitrarily chosen as the pauli-Z on the first qubit.
-        return qml.expval(qml.PauliZ(0))
+        if M=="Z":
+            # the observable that defines the target function (f^*) is arbitrarily chosen as the pauli-Z on the first qubit.
+            return qml.expval(qml.PauliZ(0))
+        if M=="0":
+            return qml.expval(qml.Hermitian([[1, 0], [0, 0]], wires=0))
 
 
 def full_kernel_fct(x, y, data_encoding):
@@ -93,22 +96,34 @@ def biased_kernel_matrix(X, Y, reduced_state):
     return K # formula for the swap test
 
 
-def get_functions(qubits, seed):
+def get_functions(qubits, seed, M='Z', second_qubit=False):
     dev = qml.device('default.qubit', wires=qubits)
     # define the full kernel
     k_prod_fct = lambda x, y: full_kernel_fct(x, y, data_encoding=product_encoding)
     k_prod = qml.QNode(k_prod_fct, dev)
 
-    reduced_state_fct = lambda x: circuit_function(x, product_encoding, qubits, return_reduced_state=True, seed=seed)
+    reduced_state_fct = lambda x: circuit_function(x, product_encoding, qubits, return_reduced_state=True, seed=seed, reduced_state=0)
     reduced_state = qml.QNode(reduced_state_fct, dev)
     k_prod_bias = lambda x, y: biased_kernel_fct(x, y, reduced_state)
     kernel_matrix_bias = lambda X, Y: biased_kernel_matrix(X, Y, reduced_state)
 
-    f_fct = lambda x: circuit_function(x, product_encoding, qubits, return_reduced_state=False, seed=seed)
+    f_fct = lambda x: circuit_function(x, product_encoding, qubits, return_reduced_state=False, seed=seed, M=M)
     f = qml.QNode(f_fct, dev)
 
+    if second_qubit==True and qubits > 1:
+        reduced_state_fct_2 = lambda x: circuit_function(x, product_encoding, qubits, return_reduced_state=1, seed=seed, reduced_state=1)
+        reduced_state_2 = qml.QNode(reduced_state_fct_2, dev)
+        k_prod_bias_2 = lambda x, y: biased_kernel_fct(x, y, reduced_state_2)
+        kernel_matrix_bias_2 = lambda X, Y: biased_kernel_matrix(X, Y, reduced_state_2)
+        return k_prod, k_prod_bias, f, kernel_matrix_bias, kernel_matrix_bias_2
+    else:
+        return k_prod, k_prod_bias, f, kernel_matrix_bias, kernel_matrix_bias
 
-    return k_prod, k_prod_bias, f, kernel_matrix_bias
+def reduced_density(x, qubits, seed):
+    dev = qml.device('default.qubit', wires=qubits)
+    reduced_state_fct = lambda x: circuit_function(x, product_encoding, qubits, return_reduced_state=True, seed=seed)
+    reduced_state = qml.QNode(reduced_state_fct, dev)
+    return reduced_state(x)
 
 
 def tests():
