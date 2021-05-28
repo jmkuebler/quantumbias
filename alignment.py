@@ -51,7 +51,7 @@ def histograms(qubits, samplesize=100, runs=100):
         gaussian[i] = alignment(K_gauss_c, y)
         bias_wrong[i] = alignment(K_bias_wrong, y)
 
-    np.save("data/hist_gauss_{0}_{1}_{2}".format(qubits, samplesize, runs), (bias,full, gaussian, bias_wrong))
+    np.save("data/hist_{0}_{1}_{2}".format(qubits, samplesize, runs), (bias,full, gaussian, bias_wrong))
 
 
 if __name__ == '__main__':

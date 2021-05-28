@@ -1,14 +1,17 @@
+"""
+This module contains all the functions that define the kernels
+"""
 import pennylane as qml
 from pennylane.templates.layers import RandomLayers
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
-from sklearn.kernel_ridge import KernelRidge
 
 
 @qml.template
 def product_encoding(x, wires=[0]):
     assert len(x) == len(wires), 'number of parameters does not match number of qubits'
+    # encode data via single qubit rotation of each dimension seperately
     for i in wires:
         # data encoding
         qml.RX(x[i], wires=i)
@@ -20,7 +23,7 @@ def circuit_function(x, data_encoding, qubits, seed, return_reduced_state=False,
     # First encode the data
     data_encoding(x, wires=wires)
 
-
+    # Here we define how the random unitary matrix V is created
     layers = qubits ** 2  # we use qubits^2 rotations
     # create random angles corresponding to drawing V
     weights = np.random.uniform(0, 2*np.pi, size=(layers, qubits))
@@ -185,8 +188,5 @@ def test_kernel_matrix():
 
 
 if __name__ == "__main__":
-    # tests()
-    # rkhs_dimension()
-    # classic_vs_quantum()
     test_kernel_matrix()
     pass
