@@ -1,5 +1,4 @@
 # Project exclude paths
 /venv/
-test.py
 /data/
 /evaluations/
