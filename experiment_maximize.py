@@ -19,13 +19,15 @@ bias_train = np.zeros(max_qubits)
 bias_test = np.zeros(max_qubits)
 gauss_train = np.zeros(max_qubits)
 gauss_test = np.zeros(max_qubits)
+bias_2_train = np.zeros(max_qubits)
+bias_2_test = np.zeros(max_qubits)
 
 runs = 1
 for seed in tqdm(range(runs)):
     np.random.seed(seed)
     for i in range(max_qubits):
         qubits = i+1
-        _, _, f, kernel_matrix_bias = get_functions(qubits=qubits, seed=seed)
+        _, _, f, kernel_matrix_bias, kernel_second_qubit = get_functions(qubits=qubits, seed=seed, second_qubit=True)
 
         # generate data
         X = np.random.uniform([0]*qubits, [2 * np.pi]*qubits, size=(samplesize, qubits))
@@ -34,6 +36,11 @@ for seed in tqdm(range(runs)):
         f_X = f_X / np.sqrt(np.var(f_X))
         y = f_X + noise
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=seed)
+
+        # fit mean seperately
+        mean = np.mean(y_train)
+        y_train = y_train - mean
+        y_test = y_test - mean
 
         # full kernel
         # unfair optimization over all lambda to show that the behaviour is not due to poor choice of regularization
@@ -54,7 +61,7 @@ for seed in tqdm(range(runs)):
                 full_train[i] = training_err
 
         # biased kernel. RKHS only contains four functions (constant function + 3 equally weighted functions, therefore we dont regularize)
-        krr_bias = KernelRidge(alpha=0.0, kernel="precomputed")
+        krr_bias = KernelRidge(alpha=0., kernel="precomputed")
         K_train_train_bias = kernel_matrix_bias(X_train, X_train)
         krr_bias.fit(K_train_train_bias, y_train)
         # compute training loss
@@ -80,9 +87,21 @@ for seed in tqdm(range(runs)):
                 gauss_test[i] = test_err
                 gauss_train[i] = training_err
 
+        # do with reduced denisity of second qubit
+        krr_bias_2 = KernelRidge(alpha=0.0, kernel="precomputed")
+        K_2_train_train = kernel_second_qubit(X_train, X_train)
+        krr_bias_2.fit(K_2_train_train, y_train)
+        # compute training loss
+        y_train_pred = krr_bias_2.predict(K_2_train_train)
+        bias_2_train[i] += mean_squared_error(y_train_pred, y_train) / runs
+        # compute test loss
+        y_bias_pred = krr_bias_2.predict(kernel_second_qubit(X_test, X_train))
+        bias_2_test[i] += mean_squared_error(y_test, y_bias_pred) / runs
+
 
 qubits = [i for i in range(1,max_qubits+1)]
-np.save("data/loss_optimized_15_steps", (qubits, full_train, full_test, bias_train, bias_test, gauss_train, gauss_test))
+np.save("data/loss_optimized_15_steps", (qubits, full_train, full_test, bias_train, bias_test,
+                                         gauss_train, gauss_test, bias_2_train, bias_2_test))
 # errors = [full_train, full_test, bias_train, bias_test, gauss_train, gauss_test]
 # labels = ["full_train", "full_test", "bias_train", "bias_test", "rbf_train", "rbf_test"]
 # styles = ["dashed", "solid", "dashed", "-", "dashed", "solid"]

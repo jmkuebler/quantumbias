@@ -22,7 +22,7 @@ def circuit_function(x, data_encoding, qubits, seed, return_reduced_state=False,
 
 
     layers = qubits ** 2  # we use qubits^2 rotations
-    # create random angles
+    # create random angles corresponding to drawing V
     weights = np.random.uniform(0, 2*np.pi, size=(layers, qubits))
     ratio_imprim = 0.5 # use as many CNOTs as rotation gates
     RandomLayers(weights=weights, ratio_imprim=ratio_imprim, wires=wires, seed=seed)

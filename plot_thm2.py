@@ -21,6 +21,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 eigenvalues = np.load("data/thm2_data.npy")
+print(eigenvalues[5,:,3])
 max_qubits = 6
 mean = np.mean(eigenvalues, axis=1)
 err = np.sqrt(np.var(eigenvalues, axis=1))
@@ -28,11 +29,11 @@ err = np.sqrt(np.var(eigenvalues, axis=1))
 qubits = [j + 2 for j in range(max_qubits)]
 print(qubits)
 lines= ['-', '--', '-.', ':']
-label = [r'$\gamma_4$', r'$\gamma_3$', r'$\gamma_2$', r'$\gamma_1$']
-for i in range(4):
+label = [r'$\gamma_3$', r'$\gamma_2$', r'$\gamma_1$', r'$\gamma_0$']
+for i in range(3, -1, -1):
     plt.errorbar(qubits, mean[:,i], yerr=err[:,i], color="#009E73", ls=lines[i], label=label[i], capsize=3)
 plt.yscale("log", base=2)
-plt.xlabel("d")
+plt.xlabel(r"Number of Qubits $d$")
 plt.ylabel(" ")
-plt.legend()
+plt.legend(fontsize='large')
 plt.savefig("evaluations/thm2.pdf", bbox_inches="tight")

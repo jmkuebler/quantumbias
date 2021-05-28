@@ -30,11 +30,12 @@ def histograms(qubits, samplesize=100, runs=100):
     full = np.zeros(runs)
     bias = np.zeros(runs)
     gaussian = np.zeros(runs)
+    bias_wrong = np.zeros(runs)
     for i in tqdm(range(runs)):
         seed = i
         samplesize = 100
         np.random.seed(seed)
-        _, _, f, kernel_matrix_bias = get_functions(qubits=qubits, seed=seed)
+        _, _, f, kernel_matrix_bias, kernel_matrix_bias_wrong =  get_functions(qubits=qubits, seed=seed, second_qubit=True)
         # generate data
         X = np.random.uniform([0] * qubits, [2 * np.pi] * qubits, size=(2 * samplesize, qubits))
         f_X = np.array([f(X[i]) for i in range(2 * samplesize)])
@@ -44,13 +45,15 @@ def histograms(qubits, samplesize=100, runs=100):
         K_bias_c = center(kernel_matrix_bias(X, X))
 
         K_gauss_c = center(RBF(1.0)(X))
+        K_bias_wrong = center(kernel_matrix_bias_wrong(X, X))
 
 
         bias[i] = alignment(K_bias_c, y)
         full[i] = alignment(K_full_c, y)
         gaussian[i] = alignment(K_gauss_c, y)
+        bias_wrong[i] = alignment(K_bias_wrong, y)
 
-    np.save("data/hist_gauss_{0}_{1}_{2}".format(qubits, samplesize, runs), (bias,full, gaussian))
+    np.save("data/hist_gauss_{0}_{1}_{2}".format(qubits, samplesize, runs), (bias,full, gaussian, bias_wrong))
     # plt.hist(full, label="full kernel")
     # plt.hist(bias, label="biased kernel")
     # plt.title("alignment for " + str(qubits) + " qubits")
@@ -128,6 +131,6 @@ def histograms(qubits, samplesize=100, runs=100):
 
 
 if __name__ == '__main__':
-    for qubits in range(1, 8):
+    for qubits in range(1, 7):
         print("current number of qubits: {}".format(qubits))
-        histograms(qubits, 100, 200)
+        histograms(qubits, 100, 50)
