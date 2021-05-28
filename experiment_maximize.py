@@ -1,18 +1,21 @@
-from  product_methods import get_functions
+### Experiments to reproduce right panel of Figure 4.
+###
+from product_methods import get_functions
 from product_methods import kernel_matrix_classic
 
-import warnings
-warnings.filterwarnings("ignore")
-
+import numpy as np
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
-import numpy as np
-import matplotlib.pyplot as plt
 from tqdm import tqdm
-noise_level = 0.01 # level of label noise
+import warnings
+warnings.filterwarnings("ignore")  # to ignore sparse matrix warning in Kernel Ridge Regression
+
+noise_level = 0.01  # level of label noise
 samplesize = 200
 max_qubits = 7
+runs = 1  # we only show this experiment for a single run, as training all for different regularizations takes too long
+
 full_train = np.zeros(max_qubits)
 full_test = np.zeros(max_qubits)
 bias_train = np.zeros(max_qubits)
@@ -60,7 +63,7 @@ for seed in tqdm(range(runs)):
                 full_test[i] = test_err
                 full_train[i] = training_err
 
-        # biased kernel. RKHS only contains four functions (constant function + 3 equally weighted functions, therefore we dont regularize)
+        # biased kernel. RKHS only contains three functions therefore we don't regularize)
         krr_bias = KernelRidge(alpha=0., kernel="precomputed")
         K_train_train_bias = kernel_matrix_bias(X_train, X_train)
         krr_bias.fit(K_train_train_bias, y_train)
@@ -102,14 +105,3 @@ for seed in tqdm(range(runs)):
 qubits = [i for i in range(1,max_qubits+1)]
 np.save("data/loss_optimized_15_steps", (qubits, full_train, full_test, bias_train, bias_test,
                                          gauss_train, gauss_test, bias_2_train, bias_2_test))
-# errors = [full_train, full_test, bias_train, bias_test, gauss_train, gauss_test]
-# labels = ["full_train", "full_test", "bias_train", "bias_test", "rbf_train", "rbf_test"]
-# styles = ["dashed", "solid", "dashed", "-", "dashed", "solid"]
-# colors = ['red', 'red', 'blue', 'blue', "green", "green"]
-# for i in range(6):
-#     plt.plot(qubits, errors[i], label=labels[i], ls=styles[i], color=colors[i])
-# plt.xlabel("Qubits")
-# plt.ylabel("MSE")
-# plt.yscale("log")
-# plt.legend()
-# plt.savefig("exp_optimized_gaussian_0.01.pdf")
