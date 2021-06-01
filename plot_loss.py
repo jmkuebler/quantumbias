@@ -23,7 +23,6 @@ import matplotlib.pyplot as plt
 
 (qubits, full_train, full_test, bias_train, bias_test, gauss_train, gauss_test, bias_2_train, bias_2_test) = np.load("data/loss_optimized_15_steps.npy")
 # (qubits, full_train, full_test, bias_train, bias_test, gauss_train, gauss_test, bias_2_train, bias_2_test) = np.load("data/loss_10_runs_alpha_e-3.npy")
-# (qubits, full_train, full_test, bias_train, bias_test, gauss_train, gauss_test, bias_2_train, bias_2_test) = np.load("data/loss_fm_10_runs_alpha_e-3.npy")
 
 
 errors = [bias_train, bias_test,full_train, full_test,  gauss_train, gauss_test, bias_2_train, bias_2_test]
@@ -42,4 +41,3 @@ plt.yscale("log")
 plt.legend(loc='right', fontsize='large',bbox_to_anchor=(1.32, .5))
 # plt.savefig("evaluations/loss_10_alphae-3.pdf", bbox_inches="tight")
 plt.savefig("evaluations/loss_optimizedHP.pdf", bbox_inches="tight")
-# plt.savefig("evaluations/loss_fm_10_alphae-3.pdf", bbox_inches="tight")

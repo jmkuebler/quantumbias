@@ -21,11 +21,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 eigenvalues = np.load("data/thm2_data.npy")
-print(eigenvalues[5,:,3])
+print(eigenvalues[5, :, 3])
 max_qubits = 6
 mean = np.mean(eigenvalues, axis=1)
 err = np.sqrt(np.var(eigenvalues, axis=1))
-# print(np.shape(mean))
 qubits = [j + 2 for j in range(max_qubits)]
 print(qubits)
 lines= ['-', '--', '-.', ':']
