@@ -1,7 +1,7 @@
 ### Experiments to reproduce right panel of Figure 4.
 ###
-from product_methods import get_functions
-from product_methods import kernel_matrix_classic
+from quantum_methods import get_functions
+from quantum_methods import kernel_matrix_classic
 
 import numpy as np
 from sklearn.kernel_ridge import KernelRidge

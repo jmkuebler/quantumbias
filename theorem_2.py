@@ -1,4 +1,4 @@
-from product_methods import get_functions
+from quantum_methods import get_functions
 import warnings
 warnings.filterwarnings("ignore")
 import numpy as np

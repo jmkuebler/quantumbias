@@ -1,7 +1,7 @@
 ### Experiments to reproduce the kernel target alignment
 ###
-from product_methods import get_functions
-from product_methods import kernel_matrix_classic
+from quantum_methods import get_functions
+from quantum_methods import kernel_matrix_classic
 
 from tqdm import tqdm
 from sklearn.gaussian_process.kernels import RBF
